@@ -410,6 +410,6 @@ The Software is provided **"AS IS"**, without warranty of any kind, express or i
 
 **If CatBase helps you, please give it a ⭐ Star!**
 
-Made with ❤️ in Zhuhai · [catbase-lang.com](http://catbase-lang.com) · [dorobot.net](http://dorobot.net)
+Made with ❤️ in Zhuhai, China · [catbase-lang.com](http://catbase-lang.com) · [dorobot.net](http://dorobot.net)
 
 </div>
