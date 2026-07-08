@@ -1,7 +1,5 @@
 <div align="center">
-
-<img src="catbase-fang.jpg" alt="CatBase Logo" style="zoom: 30%;" />
-
+<img src="catbase-fang.jpg" alt="CatBase Logo" style="zoom:30%;" />
 # CatBase Programming Language
 
 **为 AI 应用研发而生的现代编程语言** — 极小运行环境下可替代 C，支持 Python 风格语法，编译为高性能本地二进制。
