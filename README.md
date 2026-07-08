@@ -1,6 +1,6 @@
 <div align="center">
 
-![CatBase Logo](catbase-fang.jpg)
+<img src="catbase-fang.jpg" alt="CatBase Logo" style="zoom: 50%;" />
 
 # CatBase Programming Language
 
