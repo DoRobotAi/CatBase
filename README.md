@@ -374,21 +374,35 @@ Thanks to the following individuals and organizations for their support and cont
 
 ---
 
+## 📄 License
+
+CatBase is distributed under a **custom End User License Agreement (EULA)**, not an open-source license. See the [LICENSE](LICENSE) file for full terms.
+
+**Summary**:
+
+| ✅ You **may** | ❌ You **may not** |
+|------|------|
+| Download and install the Software | Reverse-engineer, decompile, or disassemble the Software |
+| Use the Software to compile CatBase source code | Modify, patch, or create derivative works of the Software itself |
+| Distribute programs/libraries **you compiled** with the Software | Redistribute the Software binary under a different license |
+| | Remove or alter copyright, attribution, or license notices |
+
+> ⚠️ **Output binaries are yours** — the programs and libraries you compile with CatBase belong to you and are not subject to this EULA.
+
+The Software is provided **"AS IS"**, without warranty of any kind, express or implied.
+
+---
+
 ## 📞 Contact Us
 
 | Channel | Link |
 |------|------|
+| 📧 Email | bell.zhong@dorobot.net |
 | 🌐 CatBase Official Website | <http://catbase-lang.com> |
 | 🏢 Dorobot Technology | <http://dorobot.net> |
 | 📖 Full Documentation | [doc/catbase.md](doc/catbase.md) |
 | 🐛 Issue Tracker | [GitHub Issues](../../issues) |
 | 💡 Feature Suggestions | [GitHub Discussions](../../discussions) |
-
----
-
-## 📄 License
-
-This project is licensed under the **MIT License** — see the [LICENSE](LICENSE) file for details.
 
 ---
 
