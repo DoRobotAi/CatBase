@@ -1,1 +1,2 @@
 *.zig linguist-vendored
+*.cat linguist-language=Python
