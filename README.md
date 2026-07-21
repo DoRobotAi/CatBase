@@ -11,6 +11,8 @@
 [![Official Website](http://img.shields.io/badge/-catbase--lang.com-2ea44f?style=for-the-badge)](http://catbase-lang.com)
 [![Company](https://img.shields.io/badge/-dorobot.net-ff69b4?style=for-the-badge)](http://dorobot.net)
 [![Language](https://img.shields.io/badge/language-CatBase-blue.svg?style=for-the-badge)]()
+[![Backend](https://img.shields.io/badge/backend-Zig-orange.svg?style=for-the-badge)](https://ziglang.org/)
+[![License](https://img.shields.io/badge/license-MIT-lightgrey.svg?style=for-the-badge)]()
 
 [English](#) · [简体中文](README_cn.md) · [Official Docs](doc/catbase.md) · [Website](http://catbase-lang.com) · [Company](http://dorobot.net)
 
@@ -409,5 +411,9 @@ The Software is provided **"AS IS"**, without warranty of any kind, express or i
 **If CatBase helps you, please give it a ⭐ Star!**
 
 Made with ❤️ in Zhuhai, China · [catbase-lang.com](http://catbase-lang.com) · [dorobot.net](http://dorobot.net)
+
+Join WeChat communication group:
+
+<img src="wechat.jpg" alt="CatBase Logo" style="zoom:25%;" />
 
 </div>
