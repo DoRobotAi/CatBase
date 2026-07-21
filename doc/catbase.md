@@ -728,10 +728,16 @@ def main(args:list[str]) {
     # 布尔类型
     is_active:bool = True
     
+    # 字节类型（0-255 的整数）
+    ascii_a:byte = byte(65)         # 'A' 的 ASCII 码
+    ascii_z:byte = byte(90)         # 'Z' 的 ASCII 码
+    
     print("Name: ", name, "\n")
     print("Age: ", age, "\n")
     print("Price: ", price, "\n")
     print("Active: ", is_active, "\n")
+    print("ASCII a: ", ascii_a, " (char: ", chr(ascii_a), ")\n")
+    print("ASCII z: ", ascii_z, " (char: ", chr(ascii_z), ")\n")
 }
 ```
 
@@ -742,7 +748,87 @@ Name: CatBase
 Age: 25
 Price: 19.99
 Active: true
+ASCII a: 65 (char: A)
+ASCII z: 90 (char: Z)
 ```
+
+#### byte 类型
+
+CatBase 提供 `byte` 类型表示 **8 位无符号整数**（0-255），对应 Zig 的 `u8`。byte 适合表示：
+- ASCII 字符码（如 'A' = 65, '0' = 48）
+- 原始字节数据（需配合 `bytes` 使用）
+- 节省内存的整数存储（相比 `int` 的 64 位）
+
+**byte 的关键特性**：
+
+1. **与 int 自动兼容**：`byte` 与 `int` 互相赋值无需显式转换
+2. **构造函数 `byte(x)`**：把 int/float 截断或包装为 0-255 范围
+3. **接受 `None`**：`byte(None) = 0`
+4. **通过 `chr()` 转单字符**：`chr(byte(65)) = "A"`
+5. **范围限制**：超出 0-255 的值会被 Zig `@intCast` 截断或包装
+6. **单字符字面量 `b"X"`**：`b"A"` 自动提升为 `byte(65)`，**无需 `byte()` 构造函数**
+
+```catbase
+def main(args:list[str]) {
+    # byte 构造函数
+    b1:byte = byte(65)        # 65
+    b2:byte = byte(255)       # 255（最大）
+    b3:byte = byte(0)         # 0（最小）
+    b4:byte = byte(None)      # 0
+
+    # 单字符 bytes 字面量（方案 C - 自动提升为 byte）
+    b5:byte = b"A"            # 65 ('A')
+    b6:byte = b"Z"            # 90 ('Z')
+    b7:byte = b"\xFF"         # 255（十六进制转义）
+    b8:byte = b"\x00"         # 0（空字节）
+
+    # byte ↔ int 互相赋值
+    n:int = 100
+    b9:byte = n               # int → byte (自动)
+    n2:int = b9               # byte → int (自动)
+
+    # byte 与 chr 配合
+    c:str = chr(byte(65))     # "A"
+    c2:str = chr(b5)          # "A"（字面量方式也行）
+
+    print("byte(65) = ", b1, "\n")
+    print("b\"A\" = ", b5, "\n")
+    print("b\"\\xFF\" = ", b7, "\n")
+    print("chr(byte(65)) = ", c, "\n")
+}
+```
+
+**byte 与 int 的对比**：
+
+| 特性 | `byte` | `int` |
+|------|--------|-------|
+| Zig 类型 | `u8`（8 位）| `i64`（64 位）|
+| 取值范围 | 0 - 255 | -9.2×10¹⁸ ~ 9.2×10¹⁸ |
+| 内存占用 | 1 字节 | 8 字节 |
+| 与 chr 配合 | ✅ `chr(b) = "字符"` | ✅ `chr(65) = "A"` |
+| 适用场景 | 字节、ASCII 码、原始数据 | 通用整数计算 |
+
+**注意**：当前 `str(byte)` **不**返回数字字符串（与 `str(int)` 不同）。如需"数字字符串"形式，请先转 int：`str(int(b))`。详见 [chr/ord 与 str/int 的关键区别](#chrord-与-strint-的关键区别)。
+
+#### byte 与 bytes 的关系
+
+`byte`（8 位无符号整数）是组成 `bytes`（字节序列）的基本元素。`bytes[i]` 索引访问返回 `byte` 类型（0-255 整数）：
+
+```catbase
+def main(args:list[str]) {
+    data:bytes = b"Hello"
+    b:byte = data[0]    # 72 (ASCII for 'H')
+    data[0] = byte(65)  # 改为 'A'
+    print("data[0] = ", data[0], "\n")
+}
+```
+
+**关键点**：
+- `bytes[i]` 索引访问和赋值使用 `byte` 类型
+- `byte` 不需要显式构造（`data[0] = 65` 也可工作）
+- 两者经常配合使用：`chr(bytes[i])` 把字节转字符
+
+详见 [bytes 类型](#bytes) 章节。
 
 ### 2.2 内置名称保护
 
@@ -1538,7 +1624,18 @@ After add: {"name": "Tom", "age": 21, "city": "Beijing", "country": "China"}
 
 #### bytes
 
-bytes 类型表示字节序列，用于处理二进制数据。bytes 本质上是字符串的另一种形式，可以直接用于需要字节数据的场景，如串口通信、网络协议等。
+`bytes` 类型表示**原始字节序列**，是 CatBase 的核心二进制数据类型。在最新版本中，`bytes` 已被实现为**真正的 `[]u8` 切片**（不再是 `runtime.Str` 结构体包装），可以直接作为 C 库的缓冲区使用。
+
+**与旧版本的关键区别**：
+
+| 特性 | 旧版本（Str 包装）| 新版本（真正的 `[]u8`）|
+|------|-----------------|---------------------|
+| 内部表示 | `runtime.Str` 结构体 | `[]u8` 切片（ptr + len）|
+| 内存布局 | 26+ 字节元数据 | 16 字节（ptr + len）+ 数据 |
+| FFI 使用 | ❌ 会破坏结构体 | ✅ **直接传 C 函数** |
+| 索引性能 | 间接访问 | ✅ 直接数组访问 |
+| 智能分配 | ❌ | ✅ 小数据静态池，大数据堆 |
+| 内存隔离 | 复杂 | ✅ 简单明确 |
 
 **bytes 字面量语法：** 使用 `b"..."` 前缀创建字节序列。
 
@@ -1566,6 +1663,142 @@ Hex data length: 4
 
 ```
 
+#### bytes 智能分配（bytes_alloc）
+
+CatBase 提供 `bytes_alloc(n)` 函数实现**智能分配**：
+- **小数据（≤ 4096 字节）**：使用**静态池**（64 个 4096 字节的预分配缓冲区，相当于"栈式"分配）
+- **大数据（> 4096 字节）**：使用**堆**分配
+- **池耗尽**：自动回退到堆
+
+智能分配的优点：
+- ✅ 小分配零成本（无需 malloc）
+- ✅ 减少堆碎片
+- ✅ 适合嵌入式和实时系统
+- ✅ 智能释放（`bytes_free` 自动识别来源）
+
+```catbase
+def main(args:list[str]) {
+    # 小数据 - 使用静态池
+    small:bytes = bytes_alloc(64)       # 静态池
+    print("small bytes: ", len(small), "\n")
+
+    # 中等数据
+    medium:bytes = bytes_alloc(1024)    # 静态池（如果还有空间）
+
+    # 大数据 - 使用堆
+    large:bytes = bytes_alloc(100000)   # 堆分配
+    print("large bytes: ", len(large), "\n")
+
+    # 1MB 图像数据
+    image:bytes = bytes_alloc(1920 * 1080 * 3)  # 1080p RGB
+
+    # 必须显式释放
+    bytes_free(small)
+    bytes_free(medium)
+    bytes_free(large)
+    bytes_free(image)
+}
+```
+
+**智能释放**：使用 `bytes_free(b)` 自动判断 b 是来自静态池还是堆，并正确释放。
+
+#### bytes 索引和访问
+
+`bytes` 支持类似数组的索引访问和赋值，返回 `byte` 类型（0-255）：
+
+```catbase
+def main(args:list[str]) {
+    data:bytes = bytes_alloc(10)
+
+    # 写入数据
+    data[0] = byte(72)   # 'H'
+    data[1] = byte(101)  # 'e'
+    data[2] = byte(108)  # 'l'
+    data[3] = byte(108)  # 'l'
+    data[4] = byte(111)  # 'o'
+
+    # 读取数据
+    b:byte = data[0]   # 72
+    print("data[0] = ", b, "\n")
+
+    # 长度
+    print("length: ", bytes_len(data), "\n")  # 或 len(data)
+
+    bytes_free(data)
+}
+```
+
+#### bytes ↔ str 双向转换
+
+`bytes` 和 `str` 可以相互转换，**转换是复制而非引用**（避免悬垂指针）：
+
+```catbase
+def main(args:list[str]) {
+    # str → bytes
+    s:str = "Hello"
+    b:bytes = bytes(s)         # 复制数据，bytes 独立内存
+    print("b[0] = ", b[0], "\n")  # 72 ('H')
+
+    # bytes → str
+    s2:str = str(b)             # 复制数据，str 独立内存
+    print("s2 = ", s2, "\n")   # "Hello"
+
+    # 独立内存验证
+    b[0] = byte(90)             # 修改 bytes
+    if s == "Hello" {
+        print("✓ 独立内存（修改 b 不影响 s）\n")
+    }
+
+    # None 转换
+    empty_b:bytes = bytes(None)  # 空 bytes
+    empty_s:str = str(None)      # "None"
+    print("empty bytes len: ", len(empty_b), "\n")
+}
+```
+
+**重要**：转换是**复制**而不是引用：
+- `bytes(s)` 创建独立的 bytes 数据（s 释放不影响 bytes）
+- `str(b)` 创建独立的 str 数据（b 释放不影响 str）
+
+#### pointer_of 智能分派（bytes 数据指针）
+
+`pointer_of` 函数现在支持**智能分派**：
+- **对 bytes 变量**：返回**数据指针**（`*u8`），可以直接传给 C 函数
+- **对其他类型变量**：返回**变量地址**（`*i64`、`*f64` 等）
+
+这意味着用户**无需学习新的 API**——`pointer_of(bytes_var)` 自动返回数据指针！
+
+```catbase
+def main(args:list[str]) {
+    # bytes：pointer_of 返回数据指针
+    data:bytes = bytes_alloc(100)
+    data[0] = byte(65)   # 'A'
+    data[1] = byte(66)   # 'B'
+
+    p:Pointer = pointer_of(data)   # 指向 data[0]，可直接传 C
+    if !p.is_null() {
+        v:byte = p.get(byte)
+        print("p.get(byte) = ", v, "\n")  # 65
+
+        p.set(byte, 90)            # 写入 'Z'
+        print("data[0] after set: ", data[0], "\n")  # 90
+    }
+
+    # int：pointer_of 返回变量地址
+    n:int = 42
+    p2:Pointer = pointer_of(n)     # 指向 n
+    v2:int = p2.get(int)
+    print("n via pointer: ", v2, "\n")  # 42
+
+    p2.set(int, 100)               # 修改 n
+    print("n after set: ", n, "\n")  # 100
+
+    bytes_free(data)
+}
+```
+
+**对比**：在旧版本中，`pointer_of(bytes_var)` 会返回 slice 结构体地址（错误的！），导致 FFI 完全失败。现在直接返回数据指针，**零成本集成 FFI**。
+
 #### bytes 转义序列
 
 bytes 类型支持以下转义序列：
@@ -1578,6 +1811,55 @@ bytes 类型支持以下转义序列：
 | `\"`   | 双引号字符                |
 | `\\`   | 反斜杠字符                |
 | `\xHH` | 十六进制字节值（HH 为两位十六进制数） |
+
+#### bytes 字面量长度自动类型提升
+
+CatBase 的 `b"..."` 字面量根据**字符数量**自动决定类型：
+
+| 字面量 | 字符数 | 自动类型 | 示例 |
+|--------|-------|---------|------|
+| `b"X"` | 1 | `byte`（u8）| `b"A"` → 65 |
+| `b"AB"` | ≥ 2 | `bytes`（[]u8）| `b"AB"` → [65, 66] |
+| `b""` | 0 | `bytes`（空）| `b""` → [] |
+
+**设计理念**：单字节字面量在概念上等同于"一个字节"，因此自动提升为 `byte` 类型，无需 `byte()` 构造函数包装。这让代码更简洁：
+
+```catbase
+def main(args:list[str]) {
+    # 单字符 → byte 类型
+    b1:byte = b"A"             # 65
+    b2:byte = b"\xFF"          # 255
+
+    # 多字符 → bytes 类型
+    bs1:bytes = b"Hello"        # [72, 101, 108, 108, 111]
+    bs2:bytes = b"\x01\x02\x03"  # [1, 2, 3]
+
+    # 在 bytes 数组中赋值时可直接用字面量
+    buf:bytes = bytes_alloc(5)
+    buf[0] = b"H"              # 72
+    buf[1] = b"e"              # 101
+    buf[2] = b"\x6C"           # 108 ('l')
+
+    # 与 byte() 构造函数完全等价
+    if b1 == byte(65) {
+        print("✓ b\"A\" == byte(65)\n")
+    }
+}
+```
+
+**类型检测**：
+
+```catbase
+type(b"A")      # → "byte"
+type(b"AB")     # → "bytes"
+type(b"hello")  # → "bytes"
+type(b"")       # → "bytes"（空）
+```
+
+**注意事项**：
+- ⚠️ `b"A"` 必须是**单个字符**，超过 1 个字符会被识别为 `bytes` 类型
+- ⚠️ `b""`（空）是 `bytes` 类型，不是 `byte`
+- ✅ `byte(65)` 构造函数仍保留，可继续使用
 
 #### bytes 应用示例：串口通信
 
@@ -1806,6 +2088,29 @@ float(10) = 10.0
 float('3.14') = 3.14
 
 ```
+
+#### bytes 与 str 互转
+
+`bytes` 和 `str` 可以双向转换，转换是**复制**而非引用：
+
+```catbase
+def main(args:list[str]) {
+    # str → bytes
+    s:str = "Hello"
+    b:bytes = bytes(s)         # 复制数据
+    print("b[0] = ", b[0], "\n")  # 72
+
+    # bytes → str
+    s2:str = str(b)             # 复制数据
+    print("s2 = ", s2, "\n")   # "Hello"
+
+    # None 转换
+    empty:bytes = bytes(None)   # 空 bytes
+    print("len: ", len(empty), "\n")  # 0
+}
+```
+
+详见 [bytes 类型](#bytes) 章节。
 
 ***
 
@@ -3244,13 +3549,16 @@ hex(4096) = '0x1000'
 
 #### chr
 
-`chr(x:int) : str` - 整数转换为字符
+`chr(x:int) : str` - 整数（code point）转换为单字符字符串
 
 ```catbase
 def main(args:list[str]) {
     print("chr(65) = '", chr(65), "'\n")
     print("chr(97) = '", chr(97), "'\n")
     print("chr(48) = '", chr(48), "'\n")
+    # 同样接受 byte 类型
+    b:byte = byte(90)
+    print("chr(byte(90)) = '", chr(b), "'\n")
 }
 ```
 
@@ -3260,8 +3568,11 @@ def main(args:list[str]) {
 chr(65) = 'A'
 chr(97) = 'a'
 chr(48) = '0'
+chr(byte(90)) = 'Z'
 
 ```
+
+**说明**：`chr()` 把整数（0-255）当作 Unicode/ASCII code point，转换为**单字符**字符串。`chr()` 接受 `int` 或 `byte` 类型参数。区别于 `str()`，详见下方对照表。
 
 #### ord
 
@@ -3282,6 +3593,49 @@ ord('A') = 65
 ord('a') = 97
 ord('0') = 48
 
+```
+
+#### chr/ord 与 str/int 的关键区别
+
+CatBase 提供了两套不同的转换函数，理解它们的区别对正确使用至关重要：
+
+| 输入 | `chr(x)` / `ord(x)` | `str(x)` / `int(x)` |
+|------|---------------------|---------------------|
+| 65   | `chr(65) = "A"`（1 字符）| `str(65) = "65"`（2 字符）|
+| 10   | `chr(10) = "\n"`（换行符）| `str(10) = "10"`（字符 "1" "0"）|
+| `"A"` | `ord("A") = 65`（单字符）| `int("A")` 编译错误 |
+
+**`chr()` 和 `ord()`：字符与整数的双向转换**
+- `chr(x)`：整数 → 单字符字符串（把整数当作 code point）
+- `ord(s)`：单字符字符串 → 整数（取第一个字节的 code point）
+- 适用场景：字符编码、ASCII 码处理、字符运算
+
+**`str()` 和 `int()`：值的字符串化**
+- `str(x)`：任意值 → 数字字符串（如 `str(65) = "65"`）
+- `int(s)`：字符串 → 整数（如 `int("42") = 42`）
+- 适用场景：显示数字、字符串解析、JSON 序列化
+
+**byte 类型的转换**：
+- `byte(65)`：构造 byte 值（u8，0-255）
+- `chr(byte(65)) = "A"`：byte 走 chr 路径
+- 当前 `str(byte)` 不支持（与 `str(int)` 不同语义）——若需"数字字符串"形式，请先转 int：`str(int(b))`
+
+```catbase
+def main(args:list[str]) {
+    # 字符 ↔ 整数
+    c1:str = chr(65)        # "A"
+    n1:int = ord("Z")       # 90
+    print(c1, " has code ", n1, "\n")
+    
+    # 字符串 ↔ 整数
+    s1:str = str(65)        # "65"
+    n2:int = int("42")      # 42
+    print(s1, " + ", n2, " = ", int(s1) + n2, "\n")
+    
+    # byte 类型
+    b:byte = byte(255)
+    print("byte(255) as char: ", chr(b), "\n")
+}
 ```
 
 ### 7.6 字符串函数
@@ -3926,22 +4280,22 @@ def main(args:list[str]) {
 }
 ```
 
-**`pointer_of(var)`** - 创建指向变量的指针
+**`pointer_of(var)` - 创建指向变量的指针
 
 ```catbase
 def main(args:list[str]) {
     # 创建整数变量
     num: int = 42
-    
+
     # 创建指向 num 的指针
     ptr: Pointer = pointer_of(num)
-    
-    # 通过指针获取值
-    val: int = ptr.get()
+
+    # 通过指针获取值（多类型支持：必须指定类型）
+    val: int = ptr.get(int)        # 获取 int 值
     print("Value: ", val, "\n")  # 输出 42
-    
-    # 通过指针设置新值
-    ptr.set(100)
+
+    # 通过指针设置新值（多类型支持：必须指定类型）
+    ptr.set(int, 100)
     print("After set: ", num, "\n")  # 输出 100
 }
 ```
@@ -3950,9 +4304,83 @@ def main(args:list[str]) {
 
 | 方法 | 说明 |
 |------|------|
-| `ptr.get()` | 获取指针指向的值（返回 i64） |
-| `ptr.set(value)` | 设置指针指向的值 |
-| `ptr.is_null()` | 判断指针是否为空 |
+| `ptr.is_null()` | 判断指针是否为空（返回 bool） |
+| `ptr.get(int)` | 获取指针指向的 int 值（**多类型支持**） |
+| `ptr.get(float)` | 获取指针指向的 float 值 |
+| `ptr.get(str)` | 获取指针指向的 str 值 |
+| `ptr.get(bool)` | 获取指针指向的 bool 值 |
+| `ptr.set(int, value)` | 设置指针指向的 int 值 |
+| `ptr.set(float, value)` | 设置指针指向的 float 值 |
+| `ptr.set(str, value)` | 设置指针指向的 str 值 |
+| `ptr.set(bool, value)` | 设置指针指向的 bool 值 |
+
+#### 多类型支持（v0.0.7+）
+
+`Pointer` 类型支持通过 comptime 类型参数访问任意基本类型的数据。语法格式：
+
+```catbase
+# 读取数据：ptr.get(类型)
+v: int = ptr.get(int)
+v2: float = ptr.get(float)
+s: str = ptr.get(str)
+
+# 写入数据：ptr.set(类型, 值)
+ptr.set(int, 100)
+ptr.set(float, 3.14)
+ptr.set(str, "hello")
+```
+
+**类型映射表**：
+
+| CatBase 类型 | Zig 类型 |
+|-------------|----------|
+| `int` | `i64` |
+| `float` | `f64` |
+| `bool` | `bool` |
+| `str` | `runtime.Str` |
+| `byte` | `u8` |
+| `i8`/`i16`/`i32`/`i64` | `i8`/`i16`/`i32`/`i64` |
+| `u8`/`u16`/`u32`/`u64` | `u8`/`u16`/`u32`/`u64` |
+| `f32`/`f64` | `f32`/`f64` |
+
+**多类型使用示例**：
+
+```catbase
+def main(args: list[str]) {
+    # int 类型
+    num: int = 42
+    ptr_int: Pointer = pointer_of(num)
+    print(ptr_int.get(int), "\n")     # 输出 42
+    ptr_int.set(int, 100)
+
+    # float 类型
+    f: float = 3.14
+    ptr_float: Pointer = pointer_of(f)
+    print(ptr_float.get(float), "\n") # 输出 3.14
+    ptr_float.set(float, 2.71)
+
+    # str 类型
+    s: str = "hello"
+    ptr_str: Pointer = pointer_of(s)
+    print(ptr_str.get(str), "\n")     # 输出 hello
+    ptr_str.set(str, "world")
+    print(s, "\n")                    # 输出 world
+
+    # 空指针安全
+    empty: Pointer = pointer()
+    v_int: int = empty.get(int)       # 返回 0（类型零值）
+    v_float: float = empty.get(float) # 返回 0.0
+}
+```
+
+**向后兼容**：
+
+为兼容旧代码，以下简写形式仍然支持（默认按 `int` 处理）：
+
+```catbase
+v: int = ptr.get()        # 等价于 ptr.get(int)
+ptr.set(100)              # 等价于 ptr.set(int, 100)
+```
 
 #### 应用场景
 
@@ -7505,7 +7933,7 @@ def main(args:list[str]) {
 
 ### 14.5 声明外部函数（from...import 语法）
 
-当导入 .so 或 .a 文件时，如果编译器无法自动识别库中的函数，可以使用 `from...import` 语法手动声明外部函数的签名。这与 Python 的 `from module import func` 语法类似。
+当导入 .so 或 .a 文件时，你可以使用 `from...import` 语法手动声明外部函数的签名。这与 Python 的 `from module import func` 语法类似。
 
 #### 语法格式
 
@@ -8294,6 +8722,12 @@ def main(args:list[str]) {
 | **字符转换**                    |                                     |
 | `chr(x)`                        | 整数转字符                          |
 | `ord(x)`                        | 字符转整数                          |
+| **bytes 操作**                  |                                     |
+| `bytes_alloc(n)`                | 智能分配 bytes（≤4096 用静态池，>4096 用堆）|
+| `bytes_free(b)`                 | 智能释放 bytes（自动识别来源）      |
+| `bytes_len(b)`                  | 获取 bytes 长度                     |
+| `bytes_ptr(b)`                  | 获取 bytes 数据指针（Pointer 类型） |
+| `bytes_from_array(arr)`         | 从 byte[N] 数组创建 bytes（复制）   |
 | **字符串/容器操作**             |                                     |
 | `len(x)`                        | 获取长度                            |
 | `range(start, end, [step])`     | 生成范围                            |
@@ -8335,8 +8769,19 @@ def main(args:list[str]) {
 | `getInputDeviceList()`          | 获取输入设备列表                    |
 | `getOutputDeviceList()`         | 获取输出设备列表                    |
 | **指针**                        |                                     |
-| `pointer(addr)`                 | 创建指针                            |
-| `pointer_of(var)`               | 获取变量指针                        |
+| `pointer()`                     | 创建空指针                          |
+| `pointer_of(var)`               | 获取变量指针（智能分派：bytes 返回数据指针，其他返回变量地址）|
+| `ptr.is_null()`                 | 判断指针是否为空                    |
+| `ptr.get(int)`                  | 读取 int 类型（v0.0.7+ 多类型支持）|
+| `ptr.get(float)`                | 读取 float 类型                     |
+| `ptr.get(str)`                  | 读取 str 类型                       |
+| `ptr.get(bool)`                 | 读取 bool 类型                      |
+| `ptr.get(byte)`                 | 读取 byte 类型                      |
+| `ptr.set(int, value)`           | 写入 int 类型                       |
+| `ptr.set(float, value)`         | 写入 float 类型                     |
+| `ptr.set(str, value)`           | 写入 str 类型                       |
+| `ptr.set(bool, value)`          | 写入 bool 类型                      |
+| `ptr.set(byte, value)`          | 写入 byte 类型                      |
 | **其他**                        |                                     |
 | `sleep(seconds)`                | 休眠                                |
 | `exec(code)`                    | 执行 CatBase 代码                   |
